@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Microbiota Vaginal Studio</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><strong>Microbiota Vaginal Studio</strong><span>Informe molecular por PCR en tiempo real</span></div>
+    <nav>
+      <button type="button" data-action="settings">Configuración de variables</button>
+      <button type="button" data-action="example">Datos ejemplo</button>
+      <button type="button" data-action="clear">Limpiar</button>
+      <button type="button" data-action="print" class="primary">Generar PDF</button>
+    </nav>
+  </header>
+
+  <main id="editorView" class="workspace">
+    <aside class="panel">
+      <section class="card">
+        <div class="section-title"><span>1</span><div><h2>Datos de la paciente</h2><p>Información que aparecerá en el encabezado.</p></div></div>
+        <div class="grid two">
+          <label>Nombre completo<input id="patientName" placeholder="Nombre y apellido"></label>
+          <label>Cédula / pasaporte<input id="patientId" placeholder="V-"></label>
+          <label>Fecha de evaluación<input id="evalDate" type="date"></label>
+          <label>Tipo de muestra<input id="sampleType" value="Hisopado vaginal"></label>
+          <label>Antecedentes<textarea id="history" rows="2" placeholder="Opcional"></textarea></label>
+          <label>ADN de muestra<input id="dna" placeholder="Ej. 625,9 ng/ul"></label>
+          <label>Nivel de pureza<select id="purity"><option>Óptimo</option><option>Adecuado</option><option>Limitado</option></select></label>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-title"><span>2</span><div><h2>Valores del equipo</h2><p>Introduce los Ct del resultado. Deja vacío o escribe ND cuando no haya detección.</p></div></div>
+        <div id="ctInputs" class="ct-inputs"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-title"><span>3</span><div><h2>Hallazgos adicionales</h2><p>Marcadores que no se calculan con las cuatro curvas principales.</p></div></div>
+        <div id="additionalInputs" class="additional-inputs"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-title"><span>4</span><div><h2>Micobiota y textos clínicos</h2><p>Todo este contenido se puede editar antes de imprimir.</p></div></div>
+        <label>Presencia alta<textarea id="fungiHigh" rows="2" placeholder="Ej. Candida albicans"></textarea></label>
+        <label>Presencia media<textarea id="fungiMedium" rows="2" placeholder="Ej. Candida kefyr, Candida parapsilosis"></textarea></label>
+        <label>Presencia baja<textarea id="fungiLow" rows="2" placeholder="Ej. Candida glabrata"></textarea></label>
+        <label>Interpretación clínica<textarea id="interpretation" rows="6"></textarea></label>
+        <label>Conclusiones<textarea id="conclusions" rows="6"></textarea></label>
+        <label>Recomendaciones<textarea id="recommendations" rows="7"></textarea></label>
+        <label>Texto bajo la firma<input id="signatureText" value="Laboratorio Genoma" placeholder="Ej. MSc. Gabriela Espinoza"></label>
+      </section>
+    </aside>
+
+    <section class="preview"><div id="report" class="report"></div></section>
+  </main>
+
+  <main id="settingsView" class="settings-view hidden">
+    <header class="settings-header">
+      <div>
+        <span class="settings-eyebrow">Administración técnica</span>
+        <h1>Configuración de variables</h1>
+        <p>Parámetros persistentes utilizados en todos los cálculos e informes nuevos.</p>
+      </div>
+      <button type="button" data-action="back-report">Volver al informe</button>
+    </header>
+
+    <section class="settings-card formula-card">
+      <div class="settings-title"><span>1</span><div><h2>Fórmula y curvas estándar</h2><p>La ecuación aplicada es log base N (copias/mL) = (Ct - intercepto) / pendiente. El factor multiplica el resultado final.</p></div></div>
+      <div id="settingsCurves" class="settings-curves"></div>
+    </section>
+
+    <section class="settings-grid">
+      <div class="settings-card">
+        <div class="settings-title"><span>2</span><div><h2>Umbrales de interpretación</h2><p>Controlan las clasificaciones automáticas del informe.</p></div></div>
+        <div id="settingsThresholds" class="settings-fields"></div>
+      </div>
+      <div class="settings-card">
+        <div class="settings-title"><span>3</span><div><h2>Valores predeterminados</h2><p>Se aplican al limpiar o iniciar un informe nuevo.</p></div></div>
+        <div id="settingsDefaults" class="settings-fields"></div>
+      </div>
+    </section>
+
+    <footer class="settings-actions">
+      <div><b id="settingsStatus">Configuración cargada</b><small>Los cambios solo se conservan después de guardar.</small></div>
+      <button type="button" data-action="restore-settings">Restaurar valores originales</button>
+      <button type="button" data-action="save-settings" class="primary">Guardar configuración</button>
+    </footer>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>

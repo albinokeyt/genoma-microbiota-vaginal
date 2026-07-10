@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+data/
+uploads/
+*.zip
+*.xlsx
+*.xls
+*.pdf
+*.docx
+.DS_Store
+.env
+.env.*
