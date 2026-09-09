@@ -33,20 +33,31 @@
       </section>
 
       <section class="card">
+        <fieldset class="component-selection"><legend>Componentes incluidos en el informe</legend>
+          <label><input type="checkbox" data-component="microbiota" checked> Microbiota vaginal</label>
+          <label><input type="checkbox" data-component="fungi"> Hongos</label>
+          <label><input type="checkbox" data-component="vph"> VPH</label>
+        </fieldset>
+        <p id="componentStatus" role="status"></p>
+      </section>
+      <section class="card" data-editor-component="microbiota">
         <div class="section-title"><span>2</span><div><h2>Valores del equipo</h2><p>Introduce los Ct del resultado. Deja vacío o escribe ND cuando no haya detección.</p></div></div>
         <div id="ctInputs" class="ct-inputs"></div>
       </section>
 
-      <section class="card">
+      <section class="card" data-editor-component="microbiota">
         <div class="section-title"><span>3</span><div><h2>Hallazgos adicionales</h2><p>Marcadores que no se calculan con las cuatro curvas principales.</p></div></div>
         <div id="additionalInputs" class="additional-inputs"></div>
       </section>
 
+      <section class="card hidden" data-editor-component="fungi">
+        <h2>Hongos y levaduras</h2><div id="fungiInputs" class="molecular-inputs"></div>
+      </section>
+      <section class="card hidden" data-editor-component="vph">
+        <h2>VPH</h2><div id="vphInputs" class="molecular-vph-inputs"></div>
+      </section>
       <section class="card">
-        <div class="section-title"><span>4</span><div><h2>Micobiota y textos clínicos</h2><p>Todo este contenido se puede editar antes de imprimir.</p></div></div>
-        <label>Presencia alta<textarea id="fungiHigh" rows="2" placeholder="Ej. Candida albicans"></textarea></label>
-        <label>Presencia media<textarea id="fungiMedium" rows="2" placeholder="Ej. Candida kefyr, Candida parapsilosis"></textarea></label>
-        <label>Presencia baja<textarea id="fungiLow" rows="2" placeholder="Ej. Candida glabrata"></textarea></label>
+        <div class="section-title"><span>4</span><div><h2>Textos clínicos</h2></div></div>
         <label>Interpretación clínica<textarea id="interpretation" rows="6"></textarea></label>
         <label>Conclusiones<textarea id="conclusions" rows="6"></textarea></label>
         <label>Recomendaciones<textarea id="recommendations" rows="7"></textarea></label>
@@ -83,12 +94,18 @@
       </div>
     </section>
 
+    <section class="settings-card"><h2>VPH: curvas y valores de referencia</h2><div id="vphSettings" class="settings-fields"></div></section>
     <footer class="settings-actions">
       <div><b id="settingsStatus">Configuración cargada</b><small>Los cambios solo se conservan después de guardar.</small></div>
       <button type="button" data-action="restore-settings">Restaurar valores originales</button>
       <button type="button" data-action="save-settings" class="primary">Guardar configuración</button>
     </footer>
   </main>
+  <script src="/static/vendor/html2canvas.min.js"></script>
+  <script src="/static/vendor/jspdf.umd.min.js"></script>
+  <script src="/static/report-layout.js"></script>
+  <script src="/static/molecular-panels.js"></script>
+  <script src="/static/report-export.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

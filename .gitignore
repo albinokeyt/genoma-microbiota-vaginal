@@ -1,4 +1,5 @@
 __pycache__/
+qa/
 *.pyc
 data/
 uploads/

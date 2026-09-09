@@ -27,4 +27,44 @@ nav { display:flex; gap:8px; flex-wrap:wrap; } button { border:1px solid #a9cdb8
 @media (max-width:1250px) { .workspace { grid-template-columns:390px 1fr; padding:14px; }.page { transform-origin:top left; } }
 @media (max-width:900px) { .topbar { position:static; align-items:flex-start; flex-direction:column; }.workspace { display:block; }.panel { margin-bottom:18px; }.page { width:100%; min-height:calc(100vw * 1.4142); aspect-ratio:auto; padding:34px 26px 34px; }.page::before { background:rgba(255,255,255,.9); } .patient-strip,.metrics,.visual-grid { grid-template-columns:1fr 1fr; }.report-header img { width:130px; }.report-header h1 { font-size:17px; }.additional-report { grid-template-columns:1fr 1fr; }.fungi-grid { grid-template-columns:repeat(3,1fr); }.grid.two { grid-template-columns:1fr; } }
 @media (max-width:900px) { .settings-view { padding:0 12px; }.settings-header,.settings-actions { align-items:stretch; flex-direction:column; }.settings-grid { grid-template-columns:1fr; }.settings-curve-row { grid-template-columns:1fr 1fr 1fr; }.settings-curve-row>div { grid-column:1 / -1; }.settings-fields { grid-template-columns:1fr; }.settings-actions div { margin-right:0; } }
-@media print { @page { size:A4; margin:0; } body { background:#fff; } .topbar,.panel,.settings-view { display:none!important; }.workspace { display:block; padding:0; }.preview,.report { display:block; }.page { width:210mm; height:297mm; min-height:297mm; margin:0; box-shadow:none; break-after:page; page-break-after:always; }.page:last-child { break-after:auto; page-break-after:auto; } }
+.preview { overflow-x:auto; }
+.report-page.page { width:210mm; height:297mm; min-height:297mm; padding:12mm 12mm 17mm; flex:none; font-size:11pt; }
+.report-page .report-header { flex:0 0 auto; margin-bottom:12px; }
+.report-page .report-header img { width:180px; height:auto; flex:none; }
+.report-page .report-header h1 { font-size:18px; letter-spacing:0; overflow-wrap:anywhere; }
+.report-page .report-header p { font-size:11pt; }
+.report-body { display:flow-root; flex:1; min-height:0; }
+.report-page .report-footer { position:absolute; left:12mm; right:12mm; bottom:6mm; display:flex; gap:12px; justify-content:space-between; font-size:8pt; }
+.report-page .section-kicker { margin-top:14px; }
+.report-page table { font-size:11pt; }
+.report-page th { font-size:9pt; }
+.report-page .patient-strip b { font-size:10pt; }
+.report-page .patient-strip { grid-template-columns:.75fr 1.8fr 1fr 1.35fr; }
+.report-page .metrics { grid-template-columns:1.5fr 1.15fr 1fr .7fr; }
+.report-page .visual-grid { grid-template-columns:1.7fr .85fr; }
+.report-page .additional-report div, .report-page .reference-card p { font-size:10pt; }
+.report-page .additional-report div { min-width:0; overflow-wrap:anywhere; }
+.report-page .text-panel { overflow-wrap:anywhere; }
+.report-page .signature img { width:110px; height:auto; max-height:none; }
+.result-pill { font-weight:700; }
+.result-pill.low { color:#286c47; }
+.result-pill.medium { color:#8c6000; }
+.result-pill.high { color:#a63f5d; }
+.vph-report-table { table-layout:fixed; }
+.vph-report-table th:nth-child(1) { width:10%; }
+.vph-report-table th:nth-child(2) { width:17%; }
+.vph-report-table th:nth-child(3) { width:18%; }
+.vph-report-table th:nth-child(4) { width:18%; }
+.vph-report-table th:nth-child(5) { width:37%; }
+.vph-report-table td { overflow-wrap:anywhere; font-size:10pt; }
+.chart-frame { margin:12px 0; }
+.chart-frame svg { display:block; width:100%; max-height:210px; }
+.chart-frame line { stroke:#aec8b8; }
+.chart-frame text { font:12px Arial,sans-serif; fill:#183c36; }
+.chart-low { fill:#2e7a58; }.chart-medium { fill:#be8a26; }.chart-high { fill:#a63f5d; }
+@media print { @page { size:A4; margin:0; } body { background:#fff; } .topbar,.panel,.settings-view { display:none!important; }.workspace { display:block; padding:0; }.preview,.report { display:block; overflow:visible; }.page { margin:0; box-shadow:none; break-after:page; page-break-after:always; }.page:last-child { break-after:auto; page-break-after:auto; } }
+.component-selection { display:flex; flex-wrap:wrap; gap:12px; padding:12px; border:1px solid var(--line); }
+.component-selection label { display:flex; align-items:center; gap:7px; }
+.component-selection input { width:18px; height:18px; }
+.molecular-inputs { display:grid; gap:12px; }
+.molecular-vph-inputs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }

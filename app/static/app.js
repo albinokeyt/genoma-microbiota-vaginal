@@ -13,6 +13,7 @@ const ADDITIONAL = [
 
 const SETTINGS_STORAGE = "microbiota-vaginal-settings-v1";
 const DEFAULT_SETTINGS = {
+  vphGroups: clone(MolecularPanels.defaultGroups),
   formula: { logBase: 10 },
   curves: Object.fromEntries(MARKERS.map((marker) => [marker.id, { m: marker.m, b: marker.b, factor: 1 }])),
   thresholds: {
@@ -46,6 +47,7 @@ function mergeSettings(saved) {
   Object.assign(merged.formula, saved.formula || {});
   Object.assign(merged.thresholds, saved.thresholds || {});
   Object.assign(merged.report, saved.report || {});
+  Object.keys(merged.vphGroups).forEach((group) => Object.assign(merged.vphGroups[group], saved.vphGroups?.[group] || {}));
   MARKERS.forEach((marker) => Object.assign(merged.curves[marker.id], saved.curves?.[marker.id] || {}));
   return merged;
 }
@@ -72,6 +74,8 @@ async function hydrateSettings() {
 }
 
 const state = {
+  components: { microbiota: true, fungi: false, vph: false },
+  molecular: MolecularPanels.newState(),
   patientName: "", patientId: "", evalDate: new Date().toISOString().slice(0, 10), sampleType: settings.report.defaultSampleType,
   history: "", dna: "", purity: settings.report.defaultPurity, values: {}, curves: settings.curves, additional: {},
   fungiHigh: "", fungiMedium: "", fungiLow: "", interpretation: "", conclusions: "", recommendations: "", signatureText: settings.report.defaultSignature,
@@ -153,6 +157,11 @@ function lactoLabel(percent) {
 }
 
 function syncForm() {
+  document.querySelectorAll("[data-component]").forEach((input) => { input.checked = state.components[input.dataset.component]; });
+  document.querySelectorAll("[data-editor-component]").forEach((section) => section.classList.toggle("hidden", !state.components[section.dataset.editorComponent]));
+  const molecularInputs = MolecularPanels.inputs(state.molecular);
+  $("fungiInputs").innerHTML = molecularInputs.fungi;
+  $("vphInputs").innerHTML = molecularInputs.vph;
   ["patientName", "patientId", "evalDate", "sampleType", "history", "dna", "purity", "fungiHigh", "fungiMedium", "fungiLow", "interpretation", "conclusions", "recommendations", "signatureText"].forEach((id) => {
     const element = $(id);
     if (element) element.value = state[id] || "";
@@ -178,6 +187,7 @@ function settingInput(label, path, value, options = {}) {
 }
 
 function renderSettings() {
+  $("vphSettings").innerHTML = Object.entries(settings.vphGroups).map(([group, curve]) => `<fieldset><legend>Grupo ${group}</legend>${settingInput("Pendiente", `vphGroups.${group}.m`, curve.m, { min: -100000 })}${settingInput("Intercepto", `vphGroups.${group}.b`, curve.b, { min: -100000 })}${settingInput("Fin de carga baja", `vphGroups.${group}.low`, curve.low)}${settingInput("Fin de carga media", `vphGroups.${group}.medium`, curve.medium)}${settingInput("Texto de referencia", `vphGroups.${group}.label`, curve.label, { type: "text" })}</fieldset>`).join("");
   $("settingsCurves").innerHTML = `<div class="formula-variable">${settingInput("Base logarítmica (N)", "formula.logBase", settings.formula.logBase, { min: 0.000001 })}<p><b>Resultado:</b> copias/mL = N<sup>(Ct - b) / m</sup> × factor</p></div>` + MARKERS.map((marker) => {
     const curve = settings.curves[marker.id];
     return `<div class="settings-curve-row"><div><b>${marker.label}</b><small>${marker.channel}</small></div>${settingInput("Pendiente (m)", `curves.${marker.id}.m`, curve.m)}${settingInput("Intercepto (b)", `curves.${marker.id}.b`, curve.b)}${settingInput("Factor final", `curves.${marker.id}.factor`, curve.factor, { min: 0.000001 })}</div>`;
@@ -256,6 +266,9 @@ async function saveSettings() {
 }
 
 function validateSettings() {
+  for (const curve of Object.values(settings.vphGroups)) {
+    if (![curve.m, curve.b, curve.low, curve.medium].every(Number.isFinite) || curve.m === 0 || curve.low < 0 || curve.medium < curve.low) return "Revisa las curvas y los umbrales de VPH.";
+  }
   if (!(Number.isFinite(settings.formula.logBase) && settings.formula.logBase > 0 && settings.formula.logBase !== 1)) return "La base logarítmica debe ser positiva y diferente de 1.";
   for (const marker of MARKERS) {
     const curve = settings.curves[marker.id];
@@ -294,6 +307,8 @@ function distributionChart(data) {
 function safeText(text) { return String(text || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>"); }
 
 function renderReport() {
+  delete $("report").dataset.paginated;
+  delete $("report").dataset.layoutError;
   const data = results();
   const diagnosis = classify(data);
   const lacto = lactoLabel(data.percent(data.lacto));
@@ -301,7 +316,7 @@ function renderReport() {
   const detectedAdditional = Object.entries(state.additional).filter(([, value]) => value && value !== "No detectado");
   const quote = (value) => value ? safeText(value) : "<span class=\"muted\">No registrado.</span>";
   $("report").innerHTML = `
-    <article class="page cover-page">
+    <article class="page cover-page" data-report-component="microbiota">
       <header class="report-header"><img src="/assets/logo_genoma.png" alt="Genoma"><div><h1>REPORTE DE MICROBIOTA VAGINAL</h1><p>Perfil molecular cuantitativo por PCR en tiempo real</p></div></header>
       <section class="patient-strip"><div><small>FECHA</small><b>${date}</b></div><div><small>PACIENTE</small><b>${state.patientName || "Pendiente"}</b></div><div><small>DOCUMENTO</small><b>${state.patientId || "-"}</b></div><div><small>MUESTRA</small><b>${state.sampleType || "-"}</b></div></section>
       <section class="metrics"><div><small>ESTADO DEL PERFIL</small><b class="${diagnosis.tone}">${diagnosis.title}</b></div><div><small>CARGA BACTERIANA TOTAL</small><b>${data.total ? scientific(data.total) : "Pendiente"}</b></div><div><small>LACTOBACILLUS</small><b class="${lacto.tone}">${formatNumber(data.percent(data.lacto), Number(settings.report.percentageDecimals))}%</b></div><div><small>PUREZA</small><b>${state.purity || "-"}</b></div></section>
@@ -317,7 +332,7 @@ function renderReport() {
       <section class="calculation-grid"><div><small>KC1 - Lactobacillus vs anaerobios</small><b>${data.kc1 === null ? "No aplica" : formatNumber(data.kc1, 2)}</b></div><div><small>KC2 - Total vs Lactobacillus</small><b>${data.kc2 === null ? "No aplica" : formatNumber(data.kc2, 2)}</b></div><div><small>KC3 - Total vs anaerobios</small><b>${data.kc3 === null ? "No aplica" : formatNumber(data.kc3, 2)}</b></div></section>
       <footer>${safeText(settings.report.footerText)}</footer>
     </article>
-    <article class="page">
+    <article class="page" data-report-component="microbiota">
       <section class="report-section"><div class="section-kicker"><span>2</span><h2>Equilibrio de la microbiota</h2></div>
         <div class="visual-grid"><div class="chart-card"><h3>Distribución porcentual</h3>${distributionChart(data)}<p class="caption">Otros corresponde a la diferencia entre bacterias totales y los marcadores cuantificados.</p></div>
         <div class="traffic-card ${lacto.tone}"><small>SEMÁFORO DE LACTOBACILLUS</small><strong>${formatNumber(data.percent(data.lacto), Number(settings.report.percentageDecimals))}%</strong><b>${lacto.label}</b><p>Verde: ≥ ${formatNumber(settings.thresholds.lactoOptimal, 2)}% · Ámbar: ${formatNumber(settings.thresholds.lactoWarning, 2)} - ${formatNumber(settings.thresholds.lactoOptimal, 2)}% · Rojo: &lt; ${formatNumber(settings.thresholds.lactoWarning, 2)}%</p></div></div>
@@ -325,19 +340,57 @@ function renderReport() {
       <section class="report-section"><div class="section-kicker"><span>3</span><h2>Marcadores complementarios</h2></div>
         <div class="additional-report">${ADDITIONAL.map((name) => `<div><span>${name}</span><b class="${state.additional[name] === "No detectado" ? "green" : "rose"}">${state.additional[name] || "No detectado"}</b></div>`).join("")}</div>
       </section>
-      <section class="report-section"><div class="section-kicker"><span>4</span><h2>Interpretación clínica</h2></div><div class="text-box">${quote(state.interpretation)}</div></section>
       <section class="reference-card"><h3>Valores de referencia</h3><p><b>Bacterias totales:</b> &lt;${scientific(settings.thresholds.totalInsufficient)} insuficiente; ${scientific(settings.thresholds.totalInsufficient)} - &lt;${scientific(settings.thresholds.totalAdequate)} disminuida; ${scientific(settings.thresholds.totalAdequate)} - &lt;${scientific(settings.thresholds.totalIncreased)} apropiada; ${scientific(settings.thresholds.totalIncreased)} - ${scientific(settings.thresholds.totalOverload)} aumentada; &gt;${scientific(settings.thresholds.totalOverload)} sobrecarga.</p><p><b>Interpretación BV:</b> KC1 &lt;${formatNumber(settings.thresholds.kc1Vaginosis, 2)} compatible; ${formatNumber(settings.thresholds.kc1Vaginosis, 2)} - ${formatNumber(settings.thresholds.kc1Normal, 2)} flora intermedia; KC1 &gt;${formatNumber(settings.thresholds.kc1Normal, 2)} no compatible.</p></section>
       <footer>${safeText(settings.report.footerText)}</footer>
     </article>
     <article class="page">
-      <section class="report-section"><div class="section-kicker"><span>5</span><h2>Micobiota vaginal</h2></div>
-      <div class="fungi-grid"><div><small>PRESENCIA ALTA</small><p>${quote(state.fungiHigh)}</p></div><div><small>PRESENCIA MEDIA</small><p>${quote(state.fungiMedium)}</p></div><div><small>PRESENCIA BAJA</small><p>${quote(state.fungiLow)}</p></div></div></section>
+      <section class="report-section"><div class="section-kicker"><span>4</span><h2>Interpretación clínica</h2></div><div class="text-box">${quote(state.interpretation)}</div></section>
       <section class="report-section"><div class="section-kicker"><span>6</span><h2>Conclusiones generales</h2></div><div class="text-box">${quote(state.conclusions)}</div></section>
       <section class="report-section"><div class="section-kicker"><span>7</span><h2>Recomendaciones</h2></div><div class="text-box recommendations">${quote(state.recommendations)}</div></section>
       <section class="disclaimer">Este informe se basa en resultados moleculares. La correlación clínica, diagnóstico y tratamiento corresponden al médico tratante.</section>
       <div class="signature"><img src="/assets/firma_genoma.png" alt="Firma"><span>${safeText(state.signatureText || "Laboratorio Genoma")}</span></div>
       <footer>${safeText(settings.report.footerText)}</footer>
     </article>`;
+  assembleSelectedReport();
+}
+
+function assembleSelectedReport() {
+  const report = $("report");
+  const header = report.querySelector(".report-header").cloneNode(true);
+  const patient = report.querySelector(".patient-strip").cloneNode(true);
+  const labels = { microbiota: "Microbiota vaginal", fungi: "Hongos", vph: "VPH" };
+  const names = Object.keys(labels).filter((key) => state.components[key]).map((key) => labels[key]);
+  header.querySelector("h1").textContent = "REPORTE MOLECULAR: " + names.join(" / ").toUpperCase();
+  header.querySelector("p").textContent = "Componentes evaluados: " + names.join(", ");
+  report.querySelectorAll("[data-report-component]").forEach((page) => { if (!state.components[page.dataset.reportComponent]) page.remove(); });
+  const finalPage = report.lastElementChild;
+  for (const group of ["fungi", "vph"]) {
+    if (!state.components[group]) continue;
+    const page = document.createElement("article");
+    page.className = "page";
+    page.dataset.reportComponent = group;
+    const title = group === "fungi" ? "Hongos y levaduras" : "Carga viral y tipificación de VPH";
+    const content = group === "fungi" ? MolecularPanels.fungiReport(state.molecular, settings.vphGroups) : MolecularPanels.vphReport(state.molecular, settings.vphGroups);
+    page.innerHTML = `<div class="section-kicker"><span></span><h2>${title}</h2></div>${content}<footer>${safeText(settings.report.footerText)}</footer>`;
+    finalPage.before(page);
+  }
+  report.querySelectorAll(".page").forEach((page, index) => {
+    page.classList.add("report-page");
+    page.querySelector(".report-header")?.remove();
+    page.prepend(header.cloneNode(true));
+    if (index === 0 && !page.querySelector(".patient-strip")) page.querySelector(".report-header").after(patient);
+    const footer = page.querySelector("footer");
+    footer.className = "report-footer";
+    const counter = document.createElement("b");
+    counter.textContent = index + 1;
+    footer.append(counter);
+    // Keep headings attached to their contents and let long tables/text flow across A4 pages.
+    page.querySelectorAll(".report-section").forEach((section) => section.replaceWith(...section.childNodes));
+    page.querySelectorAll(".section-kicker").forEach((node) => node.classList.add("report-section-title"));
+    page.querySelectorAll(".text-box").forEach((node) => node.classList.add("text-panel"));
+  });
+  report.querySelectorAll(".section-kicker > span").forEach((badge, index) => { badge.textContent = index + 1; });
+  requestAnimationFrame(() => ReportLayout.paginate(report));
 }
 
 function renderAll() { syncForm(); renderReport(); }
@@ -349,6 +402,8 @@ function setDefaults() {
 
 function example() {
   Object.assign(state, {
+    components: { microbiota: true, fungi: true, vph: true },
+    molecular: { fungi: { ...MolecularPanels.newState().fungi, candida_albicans: "high", candida_glabrata: "low", kluyveromyces: "medium", candida_parapsilosis: "medium" }, vph: { "16": "18" } },
     patientName: "Paciente de ejemplo", patientId: "V-00.000.000", evalDate: "2026-06-19",
     sampleType: "Hisopado vaginal", history: "Infección vaginal recurrente.", dna: "625,9 ng/ul", purity: "Óptimo",
     values: { total: "8,18", lacto: "12,72", gardnerella: "14,00", atopobium: "ND" },
@@ -362,6 +417,8 @@ function example() {
 }
 
 function clearAll() {
+  state.components = { microbiota: true, fungi: false, vph: false };
+  state.molecular = MolecularPanels.newState();
   Object.assign(state, { patientName: "", patientId: "", evalDate: new Date().toISOString().slice(0, 10), sampleType: settings.report.defaultSampleType, history: "", dna: "", purity: settings.report.defaultPurity, values: {}, fungiHigh: "", fungiMedium: "", fungiLow: "", interpretation: "", conclusions: "", recommendations: "", signatureText: settings.report.defaultSignature });
   ADDITIONAL.forEach((name) => { state.additional[name] = "No detectado"; });
   renderAll();
@@ -370,6 +427,9 @@ function clearAll() {
 function bind() {
   document.addEventListener("input", (event) => {
     const target = event.target;
+    if (target.dataset.component) return;
+    if (target.dataset.molecularFungus) state.molecular.fungi[target.dataset.molecularFungus] = target.value;
+    if (target.dataset.molecularVph) state.molecular.vph[target.dataset.molecularVph] = target.value;
     if (target.id && Object.hasOwn(state, target.id)) state[target.id] = target.value;
     if (target.dataset.state) {
       const [group, key] = target.dataset.state.split(".");
@@ -381,6 +441,19 @@ function bind() {
     renderReport();
   });
   document.addEventListener("change", (event) => {
+    const component = event.target.closest("[data-component]");
+    if (component) {
+      if (!component.checked && Object.values(state.components).filter(Boolean).length === 1) {
+        component.checked = true;
+        $("componentStatus").textContent = "Selecciona al menos un componente.";
+        return;
+      }
+      state.components[component.dataset.component] = component.checked;
+      $("componentStatus").textContent = "";
+      syncForm(); renderReport();
+      return;
+    }
+    if (event.target.dataset.molecularFungus) { state.molecular.fungi[event.target.dataset.molecularFungus] = event.target.value; renderReport(); }
     if (event.target.dataset.state?.startsWith("additional.")) { state.additional[event.target.dataset.state.slice(11)] = event.target.value; renderReport(); }
   });
   document.addEventListener("click", (event) => {
@@ -391,7 +464,7 @@ function bind() {
     if (action === "back-report") showReport();
     if (action === "save-settings") void saveSettings();
     if (action === "restore-settings") void restoreSettings();
-    if (action === "print") { showReport(); window.print(); }
+    if (action === "print") { showReport(); void ReportExport.download($("report"), `Informe molecular ${state.patientName || "Paciente"}`); }
   });
 }
 
