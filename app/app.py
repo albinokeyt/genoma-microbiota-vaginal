@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import mimetypes
 import os
 import socket
@@ -24,7 +25,15 @@ def load_settings() -> dict:
     if not SETTINGS_PATH.exists():
         return {}
     try:
-        return json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+        settings = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+        if not isinstance(settings, dict):
+            return {}
+        total = settings.get("curves", {}).get("total", {})
+        # Repair only the known Cy5 calibration whose intercept was saved as zero.
+        if total.get("m") == -3.839 and total.get("b") == 0:
+            total["b"] = 36.094
+            save_settings(settings)
+        return settings
     except (json.JSONDecodeError, OSError):
         return {}
 
@@ -34,6 +43,16 @@ def save_settings(settings: dict) -> None:
     temporary = SETTINGS_PATH.with_suffix(".tmp")
     temporary.write_text(json.dumps(settings, ensure_ascii=False, indent=2), encoding="utf-8")
     temporary.replace(SETTINGS_PATH)
+
+
+def validate_calibration(settings: dict) -> None:
+    for curve in settings.get("curves", {}).values():
+        m, b, factor = (float(curve.get(key, default)) for key, default in (("m", 0), ("b", 0), ("factor", 1)))
+        if not all(math.isfinite(value) for value in (m, b, factor)) or m >= 0 or b <= 0 or factor <= 0:
+            raise ValueError("invalid calibration")
+    base = float(settings.get("formula", {}).get("logBase", 10))
+    if not math.isfinite(base) or base <= 1:
+        raise ValueError("invalid logarithm base")
 
 
 class AppHandler(BaseHTTPRequestHandler):
@@ -74,16 +93,18 @@ class AppHandler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
             if not isinstance(payload, dict):
                 raise ValueError("invalid settings")
+            validate_calibration(payload)
             with SETTINGS_LOCK:
                 save_settings(payload)
             self.respond_json({"ok": True})
-        except (json.JSONDecodeError, ValueError):
+        except (json.JSONDecodeError, ValueError, TypeError, AttributeError):
             self.respond_json({"ok": False, "error": "Configuración inválida"}, status=400)
 
     def respond_json(self, payload: dict, status: int = 200) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)

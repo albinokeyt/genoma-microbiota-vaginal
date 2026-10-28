@@ -1,0 +1,31 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const context = vm.createContext({window: {}, localStorage: {getItem: () => null}});
+vm.runInContext(fs.readFileSync(path.join(__dirname, '../app/static/molecular-panels.js'), 'utf8'), context);
+context.MolecularPanels = context.window.MolecularPanels;
+const source = fs.readFileSync(path.join(__dirname, '../app/static/app.js'), 'utf8');
+vm.runInContext(source.slice(0, source.lastIndexOf('\nsetDefaults();')), context);
+vm.runInContext(`
+  settings = mergeSettings({curves: {total: {m: -3.839, b: 0, factor: 1}}});
+  state.curves = settings.curves;
+  state.values.total = '12,340';
+`, context);
+const copies = vm.runInContext('calculateMarker(MARKERS.find(m => m.id === "total")).copies', context);
+// The instrument screenshot shows rounded calibration coefficients.
+assert.ok(Math.abs(copies / 1540000 - 1) < 0.001, `Instrument approximately 1.54E+06; app: ${copies}`);
+assert.equal(copies, 10 ** ((12.34 - 36.094) / -3.839));
+assert.match(vm.runInContext('scientific(results().total)', context), /<sup>6<\/sup>/);
+vm.runInContext("state.values.total = '12';", context);
+assert.match(vm.runInContext('scientific(results().total)', context), /<sup>6<\/sup>/);
+assert.equal(vm.runInContext('validateSettings()', context), '');
+vm.runInContext("updateSetting('curves.total.b', '');", context);
+assert.ok(vm.runInContext('validateSettings()', context));
+vm.runInContext("updateSetting('curves.total.b', '0');", context);
+assert.ok(vm.runInContext('validateSettings()', context));
+vm.runInContext("updateSetting('curves.total.b', '36.094');", context);
+assert.equal(vm.runInContext('validateSettings()', context), '');
+assert.equal(vm.runInContext('mergeSettings({curves:{total:{m:-3.98,b:46.93}}}).curves.total.b', context), 46.93);
+assert.ok(!vm.runInContext('settingInput("Pendiente", "m", -3.839, {min:null})', context).includes('min="0"'));
+console.log('Instrument concentration, Ct 12 exponent, targeted migration and invalid calibration: OK');

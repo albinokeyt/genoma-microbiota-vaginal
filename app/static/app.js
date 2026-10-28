@@ -49,6 +49,7 @@ function mergeSettings(saved) {
   Object.assign(merged.report, saved.report || {});
   Object.keys(merged.vphGroups).forEach((group) => Object.assign(merged.vphGroups[group], saved.vphGroups?.[group] || {}));
   MARKERS.forEach((marker) => Object.assign(merged.curves[marker.id], saved.curves?.[marker.id] || {}));
+  if (merged.curves.total.m === -3.839 && merged.curves.total.b === 0) merged.curves.total.b = 36.094;
   return merged;
 }
 
@@ -182,7 +183,7 @@ function renderInputs() {
 
 function settingInput(label, path, value, options = {}) {
   const type = options.type || "number";
-  const attrs = type === "number" ? `type="number" step="${options.step || "any"}" min="${options.min ?? 0}"` : "type=\"text\"";
+  const attrs = type === "number" ? `type="number" step="${options.step || "any"}" ${options.min === null ? "" : `min="${options.min ?? 0}"`}` : "type=\"text\"";
   return `<label>${label}${options.help ? `<small>${options.help}</small>` : ""}<input ${attrs} data-setting="${path}" value="${String(value).replace(/"/g, "&quot;")}"></label>`;
 }
 
@@ -190,7 +191,7 @@ function renderSettings() {
   $("vphSettings").innerHTML = Object.entries(settings.vphGroups).map(([group, curve]) => `<fieldset><legend>Grupo ${group}</legend>${settingInput("Pendiente", `vphGroups.${group}.m`, curve.m, { min: -100000 })}${settingInput("Intercepto", `vphGroups.${group}.b`, curve.b, { min: -100000 })}${settingInput("Fin de carga baja", `vphGroups.${group}.low`, curve.low)}${settingInput("Fin de carga media", `vphGroups.${group}.medium`, curve.medium)}${settingInput("Texto de referencia", `vphGroups.${group}.label`, curve.label, { type: "text" })}</fieldset>`).join("");
   $("settingsCurves").innerHTML = `<div class="formula-variable">${settingInput("Base logarítmica (N)", "formula.logBase", settings.formula.logBase, { min: 0.000001 })}<p><b>Resultado:</b> copias/mL = N<sup>(Ct - b) / m</sup> × factor</p></div>` + MARKERS.map((marker) => {
     const curve = settings.curves[marker.id];
-    return `<div class="settings-curve-row"><div><b>${marker.label}</b><small>${marker.channel}</small></div>${settingInput("Pendiente (m)", `curves.${marker.id}.m`, curve.m)}${settingInput("Intercepto (b)", `curves.${marker.id}.b`, curve.b)}${settingInput("Factor final", `curves.${marker.id}.factor`, curve.factor, { min: 0.000001 })}</div>`;
+    return `<div class="settings-curve-row"><div><b>${marker.label}</b><small>${marker.channel}</small></div>${settingInput("Pendiente (m)", `curves.${marker.id}.m`, curve.m, { min: null })}${settingInput("Intercepto (b)", `curves.${marker.id}.b`, curve.b, { min: 0.000001 })}${settingInput("Factor final", `curves.${marker.id}.factor`, curve.factor, { min: 0.000001 })}</div>`;
   }).join("");
   const t = settings.thresholds;
   $("settingsThresholds").innerHTML = [
@@ -223,7 +224,7 @@ function updateSetting(path, rawValue) {
   keys.slice(0, -1).forEach((key) => { target = target[key]; });
   const key = keys.at(-1);
   const current = target[key];
-  target[key] = typeof current === "number" ? Number(String(rawValue).replace(",", ".")) : rawValue;
+  target[key] = typeof current === "number" ? (String(rawValue).trim() === "" ? NaN : Number(String(rawValue).replace(",", "."))) : rawValue;
   state.curves = settings.curves;
 }
 
@@ -269,10 +270,10 @@ function validateSettings() {
   for (const curve of Object.values(settings.vphGroups)) {
     if (![curve.m, curve.b, curve.low, curve.medium].every(Number.isFinite) || curve.m === 0 || curve.low < 0 || curve.medium < curve.low) return "Revisa las curvas y los umbrales de VPH.";
   }
-  if (!(Number.isFinite(settings.formula.logBase) && settings.formula.logBase > 0 && settings.formula.logBase !== 1)) return "La base logarítmica debe ser positiva y diferente de 1.";
+  if (!(Number.isFinite(settings.formula.logBase) && settings.formula.logBase > 1)) return "La base logarítmica debe ser mayor que 1.";
   for (const marker of MARKERS) {
     const curve = settings.curves[marker.id];
-    if (![curve.m, curve.b, curve.factor].every(Number.isFinite) || curve.m === 0 || curve.factor <= 0) return `Revisa la curva de ${marker.label}: pendiente, intercepto y factor deben ser válidos.`;
+    if (![curve.m, curve.b, curve.factor].every(Number.isFinite) || curve.m >= 0 || curve.b <= 0 || curve.factor <= 0) return `Revisa la curva de ${marker.label}: la pendiente debe ser negativa; el intercepto y el factor deben ser mayores que cero.`;
   }
   const t = settings.thresholds;
   if (!(t.lactoWarning >= 0 && t.lactoWarning < t.lactoOptimal && t.lactoOptimal <= 100)) return "Los umbrales de Lactobacillus deben estar ordenados entre 0% y 100%.";
@@ -309,6 +310,12 @@ function safeText(text) { return String(text || "").replace(/&/g, "&amp;").repla
 function renderReport() {
   delete $("report").dataset.paginated;
   delete $("report").dataset.layoutError;
+  const calibrationError = validateSettings();
+  if (calibrationError) {
+    $("report").innerHTML = `<section class="disclaimer" role="alert">${safeText(calibrationError)}</section>`;
+    $("report").dataset.layoutError = calibrationError;
+    return;
+  }
   const data = results();
   const diagnosis = classify(data);
   const lacto = lactoLabel(data.percent(data.lacto));
