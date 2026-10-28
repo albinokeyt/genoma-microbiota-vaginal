@@ -1,8 +1,8 @@
 const MARKERS = [
-  { id: "lacto", label: "Lactobacillus spp.", channel: "ROX / Orange", m: -4.87, b: 49.87, role: "protective" },
-  { id: "gardnerella", label: "Gardnerella vaginalis", channel: "FAM / Green", m: -3.82, b: 39.54, role: "pathogen" },
-  { id: "atopobium", label: "Atopobium vaginae", channel: "HEX / Yellow", m: -3.8, b: 38.35, role: "pathogen" },
-  { id: "total", label: "Bacterias totales", channel: "Cy5 / Red", m: -3.98, b: 46.93, role: "total" },
+  { id: "lacto", label: "Lactobacillus spp.", channel: "ROX / Orange", m: -3.771, b: 33.59, role: "protective" },
+  { id: "gardnerella", label: "Gardnerella vaginalis", channel: "FAM / Green", m: -3.599, b: 33.21, role: "pathogen" },
+  { id: "atopobium", label: "Atopobium vaginae", channel: "HEX / Yellow", m: -3.599, b: 34.81, role: "pathogen" },
+  { id: "total", label: "Bacterias totales", channel: "Cy5 / Red", m: -3.839, b: 36.094, role: "total" },
 ];
 
 const ADDITIONAL = [

@@ -7,6 +7,8 @@ vm.runInContext(fs.readFileSync(path.join(__dirname, '../app/static/molecular-pa
 context.MolecularPanels = context.window.MolecularPanels;
 const source = fs.readFileSync(path.join(__dirname, '../app/static/app.js'), 'utf8');
 vm.runInContext(source.slice(0, source.lastIndexOf('\nsetDefaults();')), context);
+vm.runInContext("state.values.total = '12';", context);
+assert.match(vm.runInContext('scientific(results().total)', context), /<sup>6<\/sup>/);
 vm.runInContext(`
   settings = mergeSettings({curves: {total: {m: -3.839, b: 0, factor: 1}}});
   state.curves = settings.curves;
